@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kafka KRaft cluster — live demo</title>
+<style>
+  :root {
+    --bg: #0b1120;
+    --bg-2: #0f172e;
+    --surface: #141d33;
+    --line: #26314d;
+    --teal: #3ed6c4;
+    --teal-dim: #2a9c90;
+    --amber: #f4a259;
+    --text: #edf2f7;
+    --text-muted: #93a1bd;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    background-image:
+      radial-gradient(ellipse 900px 500px at 80% 0%, rgba(62,214,196,0.12), transparent 60%),
+      linear-gradient(180deg, var(--bg) 0%, var(--bg-2) 100%);
+    background-attachment: fixed;
+    color: var(--text);
+    font-family: -apple-system, "Helvetica Neue", Helvetica, Arial, sans-serif;
+    min-height: 100vh;
+    padding: 40px 20px 80px;
+    line-height: 1.5;
+  }
+  .wrap { max-width: 860px; margin: 0 auto; }
+  .eyebrow {
+    display: inline-flex; align-items: center; gap: 9px;
+    padding: 6px 14px 6px 11px; border-radius: 999px;
+    background: rgba(62,214,196,0.09); border: 1px solid rgba(62,214,196,0.35);
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+    font-size: 12px; letter-spacing: 0.1em; color: var(--teal); text-transform: uppercase;
+  }
+  .eyebrow .dot { width: 7px; height: 7px; border-radius: 999px; background: var(--teal); }
+  h1 {
+    font-family: Georgia, "Times New Roman", serif; font-weight: 400;
+    font-size: 40px; line-height: 1.1; margin: 20px 0 14px; letter-spacing: -0.01em;
+  }
+  h1 em { font-style: italic; color: var(--teal); }
+  .sub { color: var(--text-muted); font-size: 17px; max-width: 62ch; }
+  .specs {
+    display: flex; flex-wrap: wrap; gap: 8px; margin: 22px 0 34px;
+  }
+  .spec {
+    font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12.5px;
+    padding: 6px 12px; border-radius: 7px;
+    background: var(--surface); border: 1px solid var(--line); color: var(--text-muted);
+  }
+  .card {
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: 14px; padding: 24px; margin-bottom: 20px;
+  }
+  .card h2 {
+    font-size: 13px; text-transform: uppercase; letter-spacing: 0.1em;
+    color: var(--text-muted); font-weight: 600; margin-bottom: 16px;
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+  }
+  textarea {
+    width: 100%; min-height: 92px; resize: vertical;
+    background: #0b1220; border: 1px solid var(--line); border-radius: 9px;
+    color: var(--text); padding: 13px 15px;
+    font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 14px; line-height: 1.5;
+  }
+  textarea:focus { outline: none; border-color: var(--teal-dim); }
+  .row { display: flex; align-items: center; gap: 14px; margin-top: 14px; flex-wrap: wrap; }
+  button {
+    background: var(--teal); color: #08130f; border: none;
+    padding: 11px 22px; border-radius: 9px; font-size: 15px; font-weight: 600;
+    cursor: pointer; font-family: inherit;
+  }
+  button:hover:not(:disabled) { background: #4ee3d1; }
+  button:disabled { opacity: 0.5; cursor: default; }
+  .status { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px; color: var(--text-muted); }
+  .status.ok { color: var(--teal); }
+  .status.err { color: var(--amber); }
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  th {
+    text-align: left; padding: 9px 10px; color: var(--text-muted);
+    font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 11.5px;
+    text-transform: uppercase; letter-spacing: 0.07em; font-weight: 600;
+    border-bottom: 1px solid var(--line);
+  }
+  td {
+    padding: 10px; border-bottom: 1px solid rgba(38,49,77,0.5);
+    font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px;
+    vertical-align: top;
+  }
+  td.val { color: var(--text); word-break: break-word; }
+  td.meta { color: var(--text-muted); white-space: nowrap; }
+  .part { color: var(--amber); }
+  .empty { color: var(--text-muted); padding: 18px 10px; font-size: 14px; }
+  .flow {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12.5px;
+    color: var(--text-muted); margin-bottom: 18px;
+  }
+  .flow b { color: var(--teal); font-weight: 500; }
+  .arrow { color: var(--line); }
+  footer {
+    margin-top: 34px; padding-top: 22px; border-top: 1px solid var(--line);
+    color: var(--text-muted); font-size: 14px;
+  }
+  footer a { color: var(--teal); text-decoration: none; }
+  footer a:hover { text-decoration: underline; }
+  .note { font-size: 13px; color: var(--text-muted); margin-top: 10px; }
+  @media (max-width: 560px) {
+    h1 { font-size: 30px; }
+    td.hide-sm, th.hide-sm { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow"><span class="dot"></span><span>Live Kafka cluster</span></div>
+
+  <h1>Send a message through a<br><em>3-broker Kafka cluster</em>.</h1>
+  <p class="sub">
+    This page talks to a real Apache Kafka 4.1.2 cluster running in KRaft mode on a Linux VPS,
+    deployed entirely with Ansible. Your message is produced over a TLS + SASL/SCRAM listener,
+    replicated across three brokers, then read back by a consumer.
+  </p>
+
+  <div class="specs">
+    <span class="spec">Kafka 4.1.2 · KRaft</span>
+    <span class="spec">3 brokers</span>
+    <span class="spec">TLS + SASL/SCRAM-SHA-512</span>
+    <span class="spec">ACL-restricted user</span>
+    <span class="spec">RF=3 · min.insync.replicas=2</span>
+  </div>
+
+  <div class="card">
+    <h2>Produce</h2>
+    <div class="flow">
+      <span>POST /orders</span><span class="arrow">→</span>
+      <b>producer (acks=all, idempotent)</b><span class="arrow">→</span>
+      <span>topic <b>orders</b></span>
+    </div>
+    <textarea id="payload">{"order_id": "web-001", "item": "coffee beans", "qty": 2}</textarea>
+    <div class="row">
+      <button id="send">Send to Kafka</button>
+      <span class="status" id="status"></span>
+    </div>
+    <p class="note">Payloads are capped at 1 KB. Messages are public — please don't send anything sensitive.</p>
+  </div>
+
+  <div class="card">
+    <h2>Consume</h2>
+    <div class="flow">
+      <span>topic <b>orders</b></span><span class="arrow">→</span>
+      <b>consumer group demo-consumer-group</b><span class="arrow">→</span>
+      <span>manual ack</span>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>Value</th>
+          <th>Partition</th>
+          <th>Offset</th>
+          <th class="hide-sm">Consumed</th>
+        </tr>
+      </thead>
+      <tbody id="rows">
+        <tr><td colspan="4" class="empty">Nothing consumed yet — send a message above.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <footer>
+    Ansible roles, playbooks, and the full write-up (including why the KRaft controller listener
+    can't use SCRAM) are on GitHub:
+    <a href="https://github.com/YuvarajAravindan-AI-Agent/kafka-ansible-demo">kafka-ansible-demo</a>.
+    <br>Built by Yuvaraj Aravindan · <a href="https://ai-agentic-enterprises.com">AI Agentic Enterprises</a>
+  </footer>
+</div>
+
+<script>
+  const btn = document.getElementById('send');
+  const statusEl = document.getElementById('status');
+  const rowsEl = document.getElementById('rows');
+
+  function setStatus(msg, cls) {
+    statusEl.textContent = msg;
+    statusEl.className = 'status' + (cls ? ' ' + cls : '');
+  }
+
+  function esc(s) {
+    return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  }
+
+  function ago(iso) {
+    const secs = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
+    if (secs < 60) return Math.floor(secs) + 's ago';
+    if (secs < 3600) return Math.floor(secs / 60) + 'm ago';
+    return Math.floor(secs / 3600) + 'h ago';
+  }
+
+  async function refresh() {
+    try {
+      const res = await fetch('/orders/recent');
+      if (!res.ok) return;
+      const items = await res.json();
+      if (!items.length) return;
+      rowsEl.innerHTML = items.map(i => `
+        <tr>
+          <td class="val">${esc(i.value)}</td>
+          <td class="meta part">${esc(i.partition)}</td>
+          <td class="meta">${esc(i.offset)}</td>
+          <td class="meta hide-sm">${esc(ago(i.consumedAt))}</td>
+        </tr>`).join('');
+    } catch (e) { /* transient network error; next poll retries */ }
+  }
+
+  btn.addEventListener('click', async () => {
+    const payload = document.getElementById('payload').value;
+    if (!payload.trim()) { setStatus('enter a payload first', 'err'); return; }
+    btn.disabled = true;
+    setStatus('producing…');
+    try {
+      const res = await fetch('/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: payload
+      });
+      const text = await res.text();
+      if (!res.ok) {
+        setStatus('failed: ' + (text || res.status), 'err');
+      } else {
+        setStatus('sent · key ' + text.slice(0, 8) + '…', 'ok');
+        setTimeout(refresh, 400);
+        setTimeout(refresh, 1200);
+      }
+    } catch (e) {
+      setStatus('request failed: ' + e.message, 'err');
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  refresh();
+  setInterval(refresh, 5000);
+</script>
+</body>
+</html>
